@@ -223,6 +223,7 @@ impl SyncBlockPublisher {
         previous_block: &Block,
         ref_block: bool,
     ) -> Result<(), InitializeBlockError> {
+
         if state.candidate_block.is_some() {
             warn!("Tried to initialize block but block already initialized");
             return Err(InitializeBlockError::BlockInProgress);
@@ -314,6 +315,7 @@ impl SyncBlockPublisher {
         consensus_data: &[u8],
         force: bool,
     ) -> Result<String, FinalizeBlockError> {
+
         let mut option_result = None;
         if let Some(ref mut candidate_block) = &mut state.candidate_block {
             option_result = Some(candidate_block.finalize(consensus_data, force));
@@ -479,6 +481,17 @@ impl SyncBlockPublisher {
     }
 
     fn cancel_block(&self, state: &mut BlockPublisherState, unref_block: bool) {
+
+        let invalid_batches = if let Some(ref cb) = state.candidate_block {
+           cb.invalid_batches.clone()
+        } else {
+            vec![]
+        };
+
+        // Removing invalid batches from pending_batches
+        state.pending_batches.batches.retain(|ref pb| !invalid_batches.iter().find(|ib|
+            ib.header_signature == pb.header_signature).is_some());
+
         let mut candidate_block = None;
         mem::swap(&mut state.candidate_block, &mut candidate_block);
         if let Some(mut candidate_block) = candidate_block {
